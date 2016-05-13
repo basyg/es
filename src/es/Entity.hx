@@ -5,6 +5,7 @@ import es.Entity;
 import haxe.macro.Context;
 import haxe.macro.Expr;
 import haxe.macro.Expr.ExprOf;
+import haxe.macro.ExprTools;
 import haxe.macro.Printer;
 
 class Entity extends ComponentList
@@ -16,7 +17,7 @@ class Entity extends ComponentList
 	
 	macro public function setComponent<T>(that:ExprOf<Entity>, type:ExprOf<Class<T>>, component:ExprOf<T>):ExprOf<Entity>
 	{
-		var list = makeComponentListExpr(type);
+		var list = makeComponentListExpr(makeComponentListName(type));
 		var field = makeComponentFieldName(type);
 		var fieldListNo = makeComponentFieldListNoName(type);
         return macro
@@ -37,7 +38,7 @@ class Entity extends ComponentList
 	
 	macro public function removeComponent<T>(that:ExprOf<Entity>, type:ExprOf<Class<T>>):ExprOf<T>
 	{
-		var list = makeComponentListExpr(type);
+		var list = makeComponentListExpr(makeComponentListName(type));
 		var field = makeComponentFieldName(type);
 		var fieldListNo = makeComponentFieldListNoName(type);
         return macro
@@ -76,7 +77,7 @@ class Entity extends ComponentList
 	{
 		types.push(type);
 		if (types.length == 1) {
-			var list = makeComponentListExpr(type);
+			var list = makeComponentListExpr(makeComponentListName(type));
 			var field = makeComponentFieldName(type);
 			return macro
 			{
@@ -89,7 +90,8 @@ class Entity extends ComponentList
 		}
 		
 		var hasComponents = makeHasComponents(macro entity, types);
-		var lists = types.map(makeComponentListExpr);
+		var listsNames = types.map(makeComponentListName);
+		var lists = removeRepeatsAndSort(listsNames).map(makeComponentListExpr);
 		var firstList = lists.shift();
 		var listExprs = lists.map(function(list)
 		{
@@ -99,7 +101,7 @@ class Entity extends ComponentList
 				shortestList = $list;
 			}
 		});
-		return macro
+		var m = macro
 		{
 			var shortestList = $firstList;
 			$b { listExprs };
@@ -112,9 +114,23 @@ class Entity extends ComponentList
 			}
 			shortestList;
 		}
+		trace(ExprTools.toString(m));
+		return m;
 	}
 	
 	#if macro
+	
+	static function removeRepeatsAndSort(strings:Array<String>):Array<String>
+	{
+		var map = new Map();
+		for (string in strings)
+		{
+			map[string] = string;
+		}
+		strings = Lambda.array(map);
+		strings.sort(function(a, b) return a > b ? 1 : a < b ? -1 : 0);
+		return strings;
+	}
 	
 	static function makeHasComponents(that:ExprOf<Entity>, types:Array<ExprOf<Class<Dynamic>>>):ExprOf<Bool>
 	{
@@ -152,9 +168,13 @@ class Entity extends ComponentList
 		return makeComponentFieldName(type) + '_listNo';
 	}
 	
-	static function makeComponentListExpr(type:ExprOf<Class<Dynamic>>):Expr
+	static function makeComponentListName(type:ExprOf<Class<Dynamic>>):String
 	{
-		var listName = makeComponentFieldName(type) + '_list';
+		return makeComponentFieldName(type) + '_list';
+	}
+	
+	static function makeComponentListExpr(listName:String):Expr
+	{
 		return macro es.ComponentList.$listName;
 	}
 	
