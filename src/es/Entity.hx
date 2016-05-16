@@ -7,6 +7,7 @@ import haxe.macro.Expr;
 import haxe.macro.Expr.ExprOf;
 import haxe.macro.ExprTools;
 import haxe.macro.Printer;
+import haxe.macro.Type.ClassField;
 
 class Entity extends ComponentList
 {
@@ -17,48 +18,98 @@ class Entity extends ComponentList
 	
 	macro public function setComponent<T>(that:ExprOf<Entity>, type:ExprOf<Class<T>>, component:ExprOf<T>):ExprOf<Entity>
 	{
-		var list = makeComponentListExpr(makeComponentListName(type));
 		var field = makeComponentFieldName(type);
-		var fieldListNo = makeComponentFieldListNoName(type);
-        return macro
+		
+		var allListsNames = getAllComponentsListsByListsNames();
+		var listsNames = allListsNames.filter(function(list) return list.indexOf(field) >= 0);
+		var lists = listsNames.map(makeComponentsListExpr);
+		
+		var listNoFields = listsNames.map(makeComponentFieldListNoName);
+		
+		var listExprs = [for (i in 0...lists.length) 
 		{
-			var component = $component;
-			Assert.assert(component != null, 'Addable component is not null');
+			var listNoField = listNoFields[i];
+			var listName = listsNames[i];
+			var list = lists[i];
 			
-			if ($that.$field == null)
+			var listFields = getComponentFieldFotComponentsList(listName, field);
+			
+			var expr = macro
 			{
 				var list:Arr<Entity> = $list;
-				$that.$fieldListNo = list.push($that);
+				$that.$listNoField = list.push($that);
 			}
+			if (listFields.length > 0)
+			{
+				var hasComponents = makeHasComponents2(that, listFields);
+				expr = macro if ($hasComponents) $expr;
+			}
+			expr;
+		}];
+		
+        var m = macro
+		{
+			var component = $component;
+			Assert.assert(component != null, 'Component for adding is not null');
+			
+			if ($that.$field == null) $b{listExprs};
 			
 			$that.$field = component;
 			$that;
         }
+		trace(ExprTools.toString(m));
+		return m;
 	}
 	
 	macro public function removeComponent<T>(that:ExprOf<Entity>, type:ExprOf<Class<T>>):ExprOf<T>
 	{
-		var list = makeComponentListExpr(makeComponentListName(type));
 		var field = makeComponentFieldName(type);
-		var fieldListNo = makeComponentFieldListNoName(type);
-        return macro
+		
+		var allListsNames = getAllComponentsListsByListsNames();
+		var listsNames = allListsNames.filter(function(list) return list.indexOf(field) >= 0);
+		var lists = listsNames.map(makeComponentsListExpr);
+		
+		var listNoFields = listsNames.map(makeComponentFieldListNoName);
+		
+		var listExprs = [for (i in 0...lists.length) 
+		{
+			var listNoField = listNoFields[i];
+			var listName = listsNames[i];
+			var list = lists[i];
+			
+			var listFields = getComponentFieldFotComponentsList(listName, field);
+			
+			var expr0 = macro var no = $that.$listNoField;
+			var expr = macro
+			{
+				var list:Arr<Entity> = $list;
+				list.spliceByLast(no);
+				if (no < list.length)
+				{
+					var last = list[no];
+					last.$listNoField = no;
+				}
+				$that.$listNoField = -1;
+			}
+			if (listFields.length > 0)
+			{
+				expr = macro if (no >= 0) $expr;
+			}
+			expr = macro {$expr0; $expr;}
+		}];
+		
+        var m = macro
 		{
 			var component = $that.$field;
-			Assert.assert(component != null, 'Removable component is not null');
+			Assert.assert(component != null, 'Component for removing is not null');
 			
-			var list:Arr<Entity> = $list;
-			var no = $that.$fieldListNo;
-			list.spliceByLast(no);
-			if (no < list.length)
-			{
-				var last = list[no];
-				last.$fieldListNo = no;
-			}
+			$b{listExprs};
 			
-			$that.$fieldListNo = -1;
 			$that.$field = null;
-			component;
+			$that;
         }
+		trace(ExprTools.toString(m));
+		return m;
 	}
 	
 	macro public function getComponent<T>(that:ExprOf<Entity>, type:ExprOf<Class<T>>):ExprOf<Null<T>>
@@ -73,70 +124,70 @@ class Entity extends ComponentList
 		return makeHasComponents(that, types);
     }
 	
-	static macro public function iterateWithComponents(handler:Expr, type:ExprOf<Class<Dynamic>>, types:Array<ExprOf<Class<Dynamic>>>):ExprOf<Void>
+	static macro public function getEntitiesWithComponents(type:ExprOf<Class<Dynamic>>, types:Array<ExprOf<Class<Dynamic>>>):ExprOf<ConstArr<Entity>>
 	{
 		types.push(type);
-		if (types.length == 1) {
-			var list = makeComponentListExpr(makeComponentListName(type));
-			var field = makeComponentFieldName(type);
-			return macro
-			{
-				var list:Arr<Entity> = $list;
-				for (entity in list) 
-				{
-					$handler(entity);
-				}
-			}
-		}
-		
-		var hasComponents = makeHasComponents(macro entity, types);
-		var listsNames = types.map(makeComponentListName);
-		var lists = removeRepeatsAndSort(listsNames).map(makeComponentListExpr);
-		var firstList = lists.shift();
-		var listExprs = lists.map(function(list)
-		{
-			return macro
-			if ($list.length < shortestList.length)
-			{
-				shortestList = $list;
-			}
-		});
-		var m = macro
-		{
-			var shortestList = $firstList;
-			$b { listExprs };
-			for (entity in shortestList) 
-			{
-				if ($hasComponents)
-				{
-					$handler(entity);
-				}
-			}
-			shortestList;
-		}
+		var list = makeComponentsListExpr(makeComponentsListName(types));
+		var m =  macro new ConstArr<Entity>($list);
 		trace(ExprTools.toString(m));
 		return m;
 	}
 	
 	#if macro
 	
-	static function removeRepeatsAndSort(strings:Array<String>):Array<String>
+	static var __allComponentsListsByListsNames:Null<Array<String>> = null;
+	
+	static function getComponentFieldFotComponentsList(listName:String, ?withoutField:String):Array<String>
 	{
-		var map = new Map();
-		for (string in strings)
+		var fields = [];
+		
+		while(true)
 		{
-			map[string] = string;
+			var i = listName.indexOf('__', 2);
+			var field = listName.substr(0, i);
+			listName = listName.substr(i);
+			fields.push(field);
+			if (listName == '__list')
+			{
+				break;
+			}
 		}
-		strings = Lambda.array(map);
-		strings.sort(function(a, b) return a > b ? 1 : a < b ? -1 : 0);
-		return strings;
+		
+		if (withoutField != null)
+		{
+			var i = fields.indexOf(withoutField);
+			if (i >= 0)
+			{
+				fields.splice(i, 1);
+			}
+		}
+		
+		return fields;
+	}
+	
+	static function getAllComponentsListsByListsNames():Array<String>
+	{
+		if (__allComponentsListsByListsNames == null)
+		{
+			var staticFields:Array<ClassField> = switch(Context.getType('es.ComponentList'))
+			{
+				case TInst(_.get().statics.get() => fields, _): fields;
+				default: throw 'error';
+			}
+			__allComponentsListsByListsNames = staticFields.map(function(field) return field.name);
+		}
+		return __allComponentsListsByListsNames;
 	}
 	
 	static function makeHasComponents(that:ExprOf<Entity>, types:Array<ExprOf<Class<Dynamic>>>):ExprOf<Bool>
 	{
-		var conditions = types.map(function(type)
+		return makeHasComponents2(that, types.map(makeComponentFieldName));
+	}
+	
+	static function makeHasComponents2(that:ExprOf<Entity>, fields:Array<String>):ExprOf<Bool>
+	{
+		var conditions = fields.map(function(field)
 		{
-			var field = makeComponentFieldName(type);
 			return macro $that.$field != null;
 		});
 		
@@ -163,19 +214,32 @@ class Entity extends ComponentList
 		return '__' + StringTools.replace(new Printer().printComplexType(complexType), '.', '_');
 	}
 	
-	static function makeComponentFieldListNoName(type:ExprOf<Class<Dynamic>>):String
+	static function makeComponentFieldListNoName(listName:String):String
 	{
-		return makeComponentFieldName(type) + '_listNo';
+		return listName + 'No';
 	}
 	
-	static function makeComponentListName(type:ExprOf<Class<Dynamic>>):String
+	static function makeComponentsListName(types:Array<ExprOf<Class<Dynamic>>>):String
 	{
-		return makeComponentFieldName(type) + '_list';
+		var names = removeRepeatsAndSort(types.map(makeComponentFieldName));
+		return names.join('') + '__list';
 	}
 	
-	static function makeComponentListExpr(listName:String):Expr
+	static function makeComponentsListExpr(listName:String):Expr
 	{
 		return macro es.ComponentList.$listName;
+	}
+	
+	static function removeRepeatsAndSort(strings:Array<String>):Array<String>
+	{
+		var map = new Map();
+		for (string in strings)
+		{
+			map[string] = string;
+		}
+		strings = Lambda.array(map);
+		strings.sort(function(a, b) return a > b ? 1 : a < b ? -1 : 0);
+		return strings;
 	}
 	
 	#end

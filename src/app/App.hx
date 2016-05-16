@@ -31,30 +31,48 @@ class App extends Sprite
 			e.setComponent(Speed, new Speed());
 			_entities.push(e);
 		}
+		{
+			var e = new Entity();
+			e.setComponent(Position, new Position());
+			e.setComponent(Speed, new Speed());
+			_entities.push(e);
+		}
+		{
+			var e = new Entity();
+			e.setComponent(Position, new Position());
+			_entities.push(e);
+		}
 		
 		var e = new Entity();
 		e.setComponent(Angle, new Angle());
 		_entities.push(e);
 		
 		//remove();
+		
+		trace(Entity.getEntitiesWithComponents(Speed, Angle, Position).length);
+		trace(Entity.getEntitiesWithComponents(Speed, Position).length);
+		trace(Entity.getEntitiesWithComponents(Speed).length);
+		trace(Entity.getEntitiesWithComponents(Position).length);
 	}
 	
 	function remove()
 	{
 		for (e in _entities) 
 		{
-			e.removeComponent(Angle);
-			e.removeComponent(Position);
+			if (e.hasComponents(Position))
+			{
+				e.removeComponent(Position);
+			}
+			//e.removeComponent(Position);
 		}
 	}
 	
 	public function update():Void 
 	{
-		//Entity.iterateWithComponents(updatePosition, Position);
-		for (i in 0...50) 
-		{
-			Entity.iterateWithComponents(updatePosition, Speed, Angle, Position);
-		}
+		//Entity.iterateWithComponents(Position);
+		//trace(Entity.getEntitiesWithComponents(Speed, Angle, Position).length);
+		//Entity.iterateWithComponents(Speed, Position);
+		//Entity.iterateWithComponents(Position);
 		
 		
 		//trace(f);
@@ -66,14 +84,5 @@ class App extends Sprite
 				//i++;
 			//}
 		//}
-	}
-	
-	static var f = 0;
-	
-	inline function updatePosition(e:Entity):Void
-	{
-		//var position = e.getComponent(Position);
-		//position.x++;
-		//position.y++;
 	}
 }

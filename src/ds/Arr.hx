@@ -192,6 +192,11 @@ class ArrIterator<T>
 @:forward(length, iterator)
 abstract ConstArr<T>(Arr<T>) from Arr<T>
 {
+	public inline function new(arr:Arr<T>)
+	{
+		this = arr;
+	}
+	
 	@:arrayAccess public inline function get(no:Int):T
 	{
 		return this[no];
