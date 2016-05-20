@@ -5,7 +5,6 @@ import es.Entity;
 import haxe.macro.Context;
 import haxe.macro.Expr;
 import haxe.macro.Expr.ExprOf;
-import haxe.macro.ExprTools;
 import haxe.macro.Printer;
 import haxe.macro.Type.ClassField;
 
@@ -32,7 +31,8 @@ class Entity extends EntityComponents
 			var listName = listsNames[i];
 			var list = lists[i];
 			
-			var listFields = parseComponentFieldsFromComponentListField(listName, field);
+			var listFields = parseComponentFieldsFromComponentListField(listName);
+			listFields.remove(field);
 			
 			var expr = macro
 			{
@@ -47,7 +47,7 @@ class Entity extends EntityComponents
 			expr;
 		}];
 		
-        var m = macro
+        return macro
 		{
 			var component = $component;
 			Assert.assert(component != null, 'Component for adding is not null');
@@ -56,9 +56,7 @@ class Entity extends EntityComponents
 			
 			$that.$field = component;
 			$that;
-        }
-		trace(ExprTools.toString(m));
-		return m;
+        };
 	}
 	
 	macro public function removeComponent<T>(that:ExprOf<Entity>, type:ExprOf<Class<T>>):ExprOf<T>
@@ -77,7 +75,8 @@ class Entity extends EntityComponents
 			var listName = listsNames[i];
 			var list = lists[i];
 			
-			var listFields = parseComponentFieldsFromComponentListField(listName, field);
+			var listFields = parseComponentFieldsFromComponentListField(listName);
+			listFields.remove(field);
 			
 			var expr0 = macro var no = $that.$listNoField;
 			var expr = macro
@@ -98,7 +97,7 @@ class Entity extends EntityComponents
 			expr = macro {$expr0; $expr;}
 		}];
 		
-        var m = macro
+        return macro
 		{
 			var component = $that.$field;
 			Assert.assert(component != null, 'Component for removing is not null');
@@ -107,9 +106,7 @@ class Entity extends EntityComponents
 			
 			$that.$field = null;
 			$that;
-        }
-		trace(ExprTools.toString(m));
-		return m;
+        };
 	}
 	
 	macro public function getComponent<T>(that:ExprOf<Entity>, type:ExprOf<Class<T>>):ExprOf<Null<T>>
@@ -128,43 +125,29 @@ class Entity extends EntityComponents
 	{
 		types.push(type);
 		var list = makeComponentListExpr(makeComponentListField(types));
-		var m =  macro new ConstArr<Entity>($list);
-		trace(ExprTools.toString(m));
-		return m;
+		return macro new ConstArr<Entity>($list);
 	}
 	
 	#if macro
 	
-	static var __allComponentListFields:Null<Array<String>> = null;
-	
-	static function parseComponentFieldsFromComponentListField(listName:String, ?withoutField:String):Array<String>
+	static var __parsedComponentFieldsFromComponentListField:Map<String, Array<String>> = new Map();
+	static function parseComponentFieldsFromComponentListField(listField:String):Array<String>
 	{
-		var fields = [];
-		
-		while(true)
+		if (!__parsedComponentFieldsFromComponentListField.exists(listField))
 		{
-			var i = listName.indexOf('__', 2);
-			var field = listName.substr(0, i);
-			listName = listName.substr(i);
-			fields.push(field);
-			if (listName == '__list')
+			var fields = listField.split('__')
+				.filter(function(field) return field != '')
+				.map(function(field) return '__' + field);
+			if (fields.pop() != '__list')
 			{
-				break;
+				throw 'Suffix "__list" is not found in listField';
 			}
+			__parsedComponentFieldsFromComponentListField.set(listField, fields);
 		}
-		
-		if (withoutField != null)
-		{
-			var i = fields.indexOf(withoutField);
-			if (i >= 0)
-			{
-				fields.splice(i, 1);
-			}
-		}
-		
-		return fields;
+		return __parsedComponentFieldsFromComponentListField.get(listField).copy();
 	}
 	
+	static var __allComponentListFields:Null<Array<String>> = null;
 	static function getAllComponentListFields():Array<String>
 	{
 		if (__allComponentListFields == null)
@@ -176,7 +159,7 @@ class Entity extends EntityComponents
 			}
 			__allComponentListFields = staticFields.map(function(field) return field.name);
 		}
-		return __allComponentListFields;
+		return __allComponentListFields.copy();
 	}
 	
 	static function makeHasComponentsFromTypes(that:ExprOf<Entity>, types:Array<ExprOf<Class<Dynamic>>>):ExprOf<Bool>
@@ -214,9 +197,9 @@ class Entity extends EntityComponents
 		return '__' + StringTools.replace(new Printer().printComplexType(complexType), '.', '_');
 	}
 	
-	static function makeComponentListNoField(listName:String):String
+	static function makeComponentListNoField(listField:String):String
 	{
-		return listName + 'No';
+		return listField + 'No';
 	}
 	
 	static function makeComponentListField(types:Array<ExprOf<Class<Dynamic>>>):String
@@ -225,9 +208,9 @@ class Entity extends EntityComponents
 		return names.join('') + '__list';
 	}
 	
-	static function makeComponentListExpr(listName:String):Expr
+	static function makeComponentListExpr(listField:String):Expr
 	{
-		return macro es.EntityComponents.$listName;
+		return macro es.EntityComponents.$listField;
 	}
 	
 	static function removeRepeatsAndSort(strings:Array<String>):Array<String>
