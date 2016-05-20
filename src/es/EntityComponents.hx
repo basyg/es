@@ -1,7 +1,7 @@
 package es;
 import ds.Arr;
 
-class ComponentList
+class EntityComponents
 {
 	#if !macro
 	@:noCompletion public var __app_components_Position:app.components.Position = null;

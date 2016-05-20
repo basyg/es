@@ -9,7 +9,7 @@ import haxe.macro.ExprTools;
 import haxe.macro.Printer;
 import haxe.macro.Type.ClassField;
 
-class Entity extends ComponentList
+class Entity extends EntityComponents
 {
 	public function new()
 	{
@@ -18,13 +18,13 @@ class Entity extends ComponentList
 	
 	macro public function setComponent<T>(that:ExprOf<Entity>, type:ExprOf<Class<T>>, component:ExprOf<T>):ExprOf<Entity>
 	{
-		var field = makeComponentFieldName(type);
+		var field = makeComponentField(type);
 		
-		var allListsNames = getAllComponentsListsByListsNames();
+		var allListsNames = getAllComponentListFields();
 		var listsNames = allListsNames.filter(function(list) return list.indexOf(field) >= 0);
-		var lists = listsNames.map(makeComponentsListExpr);
+		var lists = listsNames.map(makeComponentListExpr);
 		
-		var listNoFields = listsNames.map(makeComponentFieldListNoName);
+		var listNoFields = listsNames.map(makeComponentListNoField);
 		
 		var listExprs = [for (i in 0...lists.length) 
 		{
@@ -32,7 +32,7 @@ class Entity extends ComponentList
 			var listName = listsNames[i];
 			var list = lists[i];
 			
-			var listFields = getComponentFieldFotComponentsList(listName, field);
+			var listFields = parseComponentFieldsFromComponentListField(listName, field);
 			
 			var expr = macro
 			{
@@ -41,7 +41,7 @@ class Entity extends ComponentList
 			}
 			if (listFields.length > 0)
 			{
-				var hasComponents = makeHasComponents2(that, listFields);
+				var hasComponents = makeHasComponentsFromFields(that, listFields);
 				expr = macro if ($hasComponents) $expr;
 			}
 			expr;
@@ -63,13 +63,13 @@ class Entity extends ComponentList
 	
 	macro public function removeComponent<T>(that:ExprOf<Entity>, type:ExprOf<Class<T>>):ExprOf<T>
 	{
-		var field = makeComponentFieldName(type);
+		var field = makeComponentField(type);
 		
-		var allListsNames = getAllComponentsListsByListsNames();
+		var allListsNames = getAllComponentListFields();
 		var listsNames = allListsNames.filter(function(list) return list.indexOf(field) >= 0);
-		var lists = listsNames.map(makeComponentsListExpr);
+		var lists = listsNames.map(makeComponentListExpr);
 		
-		var listNoFields = listsNames.map(makeComponentFieldListNoName);
+		var listNoFields = listsNames.map(makeComponentListNoField);
 		
 		var listExprs = [for (i in 0...lists.length) 
 		{
@@ -77,7 +77,7 @@ class Entity extends ComponentList
 			var listName = listsNames[i];
 			var list = lists[i];
 			
-			var listFields = getComponentFieldFotComponentsList(listName, field);
+			var listFields = parseComponentFieldsFromComponentListField(listName, field);
 			
 			var expr0 = macro var no = $that.$listNoField;
 			var expr = macro
@@ -114,20 +114,20 @@ class Entity extends ComponentList
 	
 	macro public function getComponent<T>(that:ExprOf<Entity>, type:ExprOf<Class<T>>):ExprOf<Null<T>>
 	{
-		var field = makeComponentFieldName(type);
+		var field = makeComponentField(type);
         return macro $that.$field;
 	}
         
     macro public function hasComponents(that:ExprOf<Entity>, type:ExprOf<Class<Dynamic>>, types:Array<ExprOf<Class<Dynamic>>>):ExprOf<Bool>
 	{
 		types.push(type);
-		return makeHasComponents(that, types);
+		return makeHasComponentsFromTypes(that, types);
     }
 	
 	static macro public function getEntitiesWithComponents(type:ExprOf<Class<Dynamic>>, types:Array<ExprOf<Class<Dynamic>>>):ExprOf<ConstArr<Entity>>
 	{
 		types.push(type);
-		var list = makeComponentsListExpr(makeComponentsListName(types));
+		var list = makeComponentListExpr(makeComponentListField(types));
 		var m =  macro new ConstArr<Entity>($list);
 		trace(ExprTools.toString(m));
 		return m;
@@ -135,9 +135,9 @@ class Entity extends ComponentList
 	
 	#if macro
 	
-	static var __allComponentsListsByListsNames:Null<Array<String>> = null;
+	static var __allComponentListFields:Null<Array<String>> = null;
 	
-	static function getComponentFieldFotComponentsList(listName:String, ?withoutField:String):Array<String>
+	static function parseComponentFieldsFromComponentListField(listName:String, ?withoutField:String):Array<String>
 	{
 		var fields = [];
 		
@@ -165,26 +165,26 @@ class Entity extends ComponentList
 		return fields;
 	}
 	
-	static function getAllComponentsListsByListsNames():Array<String>
+	static function getAllComponentListFields():Array<String>
 	{
-		if (__allComponentsListsByListsNames == null)
+		if (__allComponentListFields == null)
 		{
-			var staticFields:Array<ClassField> = switch(Context.getType('es.ComponentList'))
+			var staticFields:Array<ClassField> = switch(Context.getType('es.EntityComponents'))
 			{
 				case TInst(_.get().statics.get() => fields, _): fields;
 				default: throw 'error';
 			}
-			__allComponentsListsByListsNames = staticFields.map(function(field) return field.name);
+			__allComponentListFields = staticFields.map(function(field) return field.name);
 		}
-		return __allComponentsListsByListsNames;
+		return __allComponentListFields;
 	}
 	
-	static function makeHasComponents(that:ExprOf<Entity>, types:Array<ExprOf<Class<Dynamic>>>):ExprOf<Bool>
+	static function makeHasComponentsFromTypes(that:ExprOf<Entity>, types:Array<ExprOf<Class<Dynamic>>>):ExprOf<Bool>
 	{
-		return makeHasComponents2(that, types.map(makeComponentFieldName));
+		return makeHasComponentsFromFields(that, types.map(makeComponentField));
 	}
 	
-	static function makeHasComponents2(that:ExprOf<Entity>, fields:Array<String>):ExprOf<Bool>
+	static function makeHasComponentsFromFields(that:ExprOf<Entity>, fields:Array<String>):ExprOf<Bool>
 	{
 		var conditions = fields.map(function(field)
 		{
@@ -203,7 +203,7 @@ class Entity extends ComponentList
 		return and;
 	}
 	
-	static function makeComponentFieldName(type:ExprOf<Class<Dynamic>>):String
+	static function makeComponentField(type:ExprOf<Class<Dynamic>>):String
 	{
 		var typeName = switch (type.expr)
 		{
@@ -214,20 +214,20 @@ class Entity extends ComponentList
 		return '__' + StringTools.replace(new Printer().printComplexType(complexType), '.', '_');
 	}
 	
-	static function makeComponentFieldListNoName(listName:String):String
+	static function makeComponentListNoField(listName:String):String
 	{
 		return listName + 'No';
 	}
 	
-	static function makeComponentsListName(types:Array<ExprOf<Class<Dynamic>>>):String
+	static function makeComponentListField(types:Array<ExprOf<Class<Dynamic>>>):String
 	{
-		var names = removeRepeatsAndSort(types.map(makeComponentFieldName));
+		var names = removeRepeatsAndSort(types.map(makeComponentField));
 		return names.join('') + '__list';
 	}
 	
-	static function makeComponentsListExpr(listName:String):Expr
+	static function makeComponentListExpr(listName:String):Expr
 	{
-		return macro es.ComponentList.$listName;
+		return macro es.EntityComponents.$listName;
 	}
 	
 	static function removeRepeatsAndSort(strings:Array<String>):Array<String>
