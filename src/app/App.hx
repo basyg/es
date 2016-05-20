@@ -59,7 +59,7 @@ class App extends Sprite
 	{
 		for (e in _entities) 
 		{
-			if (e.hasComponents(Position))
+			if (e.hasComponents(Position, Angle))
 			{
 				e.removeComponent(Position);
 			}
