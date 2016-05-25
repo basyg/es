@@ -1,16 +1,16 @@
 package es;
 
-import ds.Arr;
-import es.Entity;
 import haxe.macro.Expr.ExprOf;
 
-typedef EMT = EntityMacroTools;
+private typedef EMT = EntityMacroTools;
 
 class Entity extends EntityComponents
 {
-	public function new()
+	public var entitySystem(default, null):EntitySystem;
+	
+	public function new(entitySystem:EntitySystem)
 	{
-		
+		this.entitySystem = entitySystem;
 	}
 	
 	macro public function setComponent<T>(that:ExprOf<Entity>, type:ExprOf<Class<T>>, component:ExprOf<T>):ExprOf<Entity>
@@ -19,19 +19,17 @@ class Entity extends EntityComponents
 		
 		var listFields = EMT.getAllComponentListFields().filter(function(list) return list.indexOf(field) >= 0);
 		var listNoFields = listFields.map(EMT.makeComponentListNoField);
-		var listExprs = listFields.map(EMT.makeComponentListExpr);
 		
 		var updateListExprs = [
-			for (i in 0...listExprs.length) 
+			for (i in 0...listFields.length) 
 			{
 				var listField = listFields[i];
 				var listNoField = listNoFields[i];
-				var listExpr = listExprs[i];
 				
 				var componentFields = EMT.parseComponentFieldsFromComponentListField(listField);
 				componentFields.remove(field);
 				
-				var expr = macro entity.$listNoField = $listExpr.push(entity);
+				var expr = macro entity.$listNoField = entitySystem.$listField.push(entity);
 				if (componentFields.length > 0)
 				{
 					var hasComponentsExpr = EMT.makeHasComponentsExprFromFields(macro entity, componentFields);
@@ -46,8 +44,9 @@ class Entity extends EntityComponents
 		
         return macro
 		{
-			var entity:Entity = $that;
+			var entity:es.Entity = $that;
 			var component = $component;
+			var entitySystem = entity.entitySystem;
 			Assert.assert(component != null, 'Component for adding is not null');
 			
 			if (entity.$field == null) $b{updateListExprs};
@@ -63,28 +62,26 @@ class Entity extends EntityComponents
 		
 		var listFields = EMT.getAllComponentListFields().filter(function(list) return list.indexOf(field) >= 0);
 		var listNoFields = listFields.map(EMT.makeComponentListNoField);
-		var listExprs = listFields.map(EMT.makeComponentListExpr);
 		
 		var updateListExprs = [
-			for (i in 0...listExprs.length) 
+			for (i in 0...listFields.length) 
 			{
 				var listField = listFields[i];
 				var listNoField = listNoFields[i];
-				var listExpr = listExprs[i];
 				
 				var listFields = EMT.parseComponentFieldsFromComponentListField(listField);
 				listFields.remove(field);
 				
-				var expr0 = macro var no = $that.$listNoField;
+				var expr0 = macro var no = entity.$listNoField;
 				var expr = macro
 				{
-					var list:Arr<Entity> = $listExpr;
+					var list:ds.Arr<es.Entity> = entitySystem.$listField;
 					list.spliceByLast(no);
 					if (no < list.length)
 					{
 						list[no].$listNoField = no;
 					}
-					$that.$listNoField = -1;
+					entity.$listNoField = -1;
 				}
 				if (listFields.length > 0)
 				{
@@ -100,13 +97,15 @@ class Entity extends EntityComponents
 		
         return macro
 		{
+			var entity:es.Entity = $that;
 			var component = $that.$field;
+			var entitySystem = entity.entitySystem;
 			Assert.assert(component != null, 'Component for removing is not null');
 			
 			$b{updateListExprs};
 			
-			$that.$field = null;
-			$that;
+			entity.$field = null;
+			entity;
         };
 	}
 	
@@ -122,15 +121,8 @@ class Entity extends EntityComponents
 		var fields = types.map(EMT.makeComponentField);
 		return macro
 		{
-			var entity:Entity = $that;
+			var entity:es.Entity = $that;
 			${EMT.makeHasComponentsExprFromFields(macro entity, fields)};
 		};
     }
-	
-	static macro public function getEntitiesWithComponents(type:ExprOf<Class<Dynamic>>, types:Array<ExprOf<Class<Dynamic>>>):ExprOf<ConstArr<Entity>>
-	{
-		types.push(type);
-		var list = EMT.makeComponentListExpr(EMT.makeComponentListField(types));
-		return macro new ConstArr<Entity>($list);
-	}
 }

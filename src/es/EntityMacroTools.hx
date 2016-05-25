@@ -3,6 +3,7 @@ package es;
 import haxe.macro.Context;
 import haxe.macro.Expr;
 import haxe.macro.Expr.ExprOf;
+import haxe.macro.ExprTools;
 import haxe.macro.Printer;
 import haxe.macro.Type.ClassField;
 
@@ -32,19 +33,14 @@ class EntityMacroTools
 		return listField + 'No';
 	}
 	
-	public static function makeComponentListExpr(listField:String):Expr
-	{
-		return macro es.EntityComponents.$listField;
-	}
-	
 	static var __allComponentListFields:Null<Array<String>> = null;
 	public static function getAllComponentListFields():Array<String>
 	{
 		if (__allComponentListFields == null)
 		{
-			var staticFields:Array<ClassField> = switch(Context.getType('es.EntityComponents'))
+			var staticFields:Array<ClassField> = switch(Context.getType('es.EntitySystemLists'))
 			{
-				case TInst(_.get().statics.get() => fields, _): fields;
+				case TInst(_.get().fields.get() => fields, _): fields;
 				default: throw 'error';
 			}
 			__allComponentListFields = staticFields.map(function(field) return field.name);
@@ -98,6 +94,12 @@ class EntityMacroTools
 		strings = Lambda.array(map);
 		strings.sort(function(a, b) return a > b ? 1 : a < b ? -1 : 0);
 		return strings;
+	}
+	
+	public static function traceExpr(e)
+	{
+		trace(ExprTools.toString(e));
+		return e;
 	}
 	
 	#end

@@ -1,14 +1,15 @@
 package app;
+
 import app.components.Angle;
 import app.components.Position;
 import app.components.Speed;
-import ds.Arr;
-import es.Entity;
+import es.EntitySystem;
 import flash.display.Sprite;
+import haxe.Timer;
 
 class App extends Sprite
 {
-	var _entities:Arr<Entity> = new Arr();
+	var es:EntitySystem = new EntitySystem();
 	
 	public function new()
 	{
@@ -17,53 +18,58 @@ class App extends Sprite
 	
 	public function start():Void
 	{
-		//for (i in 0...10000) 
+		for (i in 0...50000) 
 		{
-			var e = new Entity();
+			var e = es.createEntity();
 			e.setComponent(Speed, new Speed());
-			
-			_entities.push(e);
 		}
-		//for (i in 0...10000) 
+		for (i in 0...50000) 
 		{
-			var e = new Entity();
+			var e = es.createEntity();
 			e.setComponent(Position, new Position());
 			e.setComponent(Speed, new Speed());
-			_entities.push(e);
 		}
 		{
-			var e = new Entity();
+			var e = es.createEntity();
 			e.setComponent(Position, new Position());
 			e.setComponent(Speed, new Speed());
-			_entities.push(e);
 		}
 		{
-			var e = new Entity();
+			var e = es.createEntity();
 			e.setComponent(Position, new Position());
-			_entities.push(e);
 		}
 		
-		var e = new Entity();
+		var e = es.createEntity();
 		e.setComponent(Angle, new Angle());
-		_entities.push(e);
 		
+		Timer.measure(remove);
+		Timer.measure(removeStatic);
 		//remove();
 		
-		trace(Entity.getEntitiesWithComponents(Speed, Angle, Position).length);
-		trace(Entity.getEntitiesWithComponents(Speed, Position).length);
-		trace(Entity.getEntitiesWithComponents(Speed).length);
-		trace(Entity.getEntitiesWithComponents(Position).length);
+		trace(es.getEntitiesWithComponents(Speed, Angle, Position).length);
+		trace(es.getEntitiesWithComponents(Speed, Position).length);
+		trace(es.getEntitiesWithComponents(Speed).length);
+		trace(es.getEntitiesWithComponents(Position).length);
 	}
 	
 	function remove()
 	{
-		for (e in _entities) 
+		for (e in es.getEntities()) 
 		{
-			if (e.hasComponents(Position, Angle))
+			if (e.hasComponents(Position, Speed))
 			{
 				e.removeComponent(Position);
+				e.removeComponent(Speed);
 			}
-			//e.removeComponent(Position);
+		}
+	}
+	
+	function removeStatic()
+	{
+		for (e in es.getEntitiesWithComponents(Position, Speed)) 
+		{
+			e.removeComponent(Position);
+			e.removeComponent(Speed);
 		}
 	}
 	
