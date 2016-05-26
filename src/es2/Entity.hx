@@ -1,4 +1,4 @@
-package es;
+package es2;
 
 import haxe.macro.Expr.ExprOf;
 

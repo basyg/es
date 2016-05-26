@@ -3,13 +3,12 @@ package app;
 import app.components.Angle;
 import app.components.Position;
 import app.components.Speed;
-import es.EntitySystem;
 import flash.display.Sprite;
 import haxe.Timer;
 
 class App extends Sprite
 {
-	var es:EntitySystem = new EntitySystem();
+	var system:es2.EntitySystem = new es2.EntitySystem();
 	
 	public function new()
 	{
@@ -20,41 +19,41 @@ class App extends Sprite
 	{
 		for (i in 0...50000) 
 		{
-			var e = es.createEntity();
+			var e = system.createEntity();
 			e.setComponent(Speed, new Speed());
 		}
 		for (i in 0...50000) 
 		{
-			var e = es.createEntity();
+			var e = system.createEntity();
 			e.setComponent(Position, new Position());
 			e.setComponent(Speed, new Speed());
 		}
 		{
-			var e = es.createEntity();
+			var e = system.createEntity();
 			e.setComponent(Position, new Position());
 			e.setComponent(Speed, new Speed());
 		}
 		{
-			var e = es.createEntity();
+			var e = system.createEntity();
 			e.setComponent(Position, new Position());
 		}
 		
-		var e = es.createEntity();
+		var e = system.createEntity();
 		e.setComponent(Angle, new Angle());
 		
 		Timer.measure(remove);
 		Timer.measure(removeStatic);
 		//remove();
 		
-		trace(es.getEntitiesWithComponents(Speed, Angle, Position).length);
-		trace(es.getEntitiesWithComponents(Speed, Position).length);
-		trace(es.getEntitiesWithComponents(Speed).length);
-		trace(es.getEntitiesWithComponents(Position).length);
+		trace(system.getEntitiesWithComponents(Speed, Angle, Position).length);
+		trace(system.getEntitiesWithComponents(Speed, Position).length);
+		trace(system.getEntitiesWithComponents(Speed).length);
+		trace(system.getEntitiesWithComponents(Position).length);
 	}
 	
 	function remove()
 	{
-		for (e in es.getEntities()) 
+		for (e in system.getEntities()) 
 		{
 			if (e.hasComponents(Position, Speed))
 			{
@@ -66,7 +65,7 @@ class App extends Sprite
 	
 	function removeStatic()
 	{
-		for (e in es.getEntitiesWithComponents(Position, Speed)) 
+		for (e in system.getEntitiesWithComponents(Position, Speed)) 
 		{
 			e.removeComponent(Position);
 			e.removeComponent(Speed);

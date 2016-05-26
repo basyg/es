@@ -7,38 +7,53 @@ import haxe.macro.ExprTools;
 import haxe.macro.Printer;
 import haxe.macro.Type.ClassField;
 
-class EntityMacroTools
+class EntityMacro
 {
 	#if macro
 	
-	public static function makeComponentField<T>(type:ExprOf<Class<T>>):String
+	static var _type = EntityMacro;
+	
+	//public static function getQualifiedEntityComponentsName():String
+	//{
+		//
+	//}
+	//
+	public static function getQualifiedEntitySystemListsName():String
 	{
-		var typeName = switch (type.expr)
-		{
-			case EConst(CIdent(typeName)): typeName;
-			default: throw '"${new Printer().printExpr(type)}" isn\'t a class';
-		}
+		
+		//Context.onTypeNotFound(function(n) { trace(n); return null; });
+		return null;
+	}
+	
+	public static function makeComponentFieldFromTypeExpr<T>(type:ExprOf<Class<T>>):String
+	{
+		var typeName = ExprTools.toString(type);
 		var complexType = Context.toComplexType(Context.getType(typeName));
 		return '__' + StringTools.replace(new Printer().printComplexType(complexType), '.', '_');
 	}
 	
-	public static function makeComponentListField(types:Array<ExprOf<Class<Dynamic>>>):String
+	public static function makeComponentListFieldFromTypeExprs(types:Array<ExprOf<Class<Dynamic>>>):String
 	{
-		var names = removeRepeatsAndSort(types.map(makeComponentField));
+		var names = removeRepeatsAndSort(types.map(makeComponentFieldFromTypeExpr));
 		return names.join('') + '__list';
 	}
 	
-	public static function makeComponentListNoField(listField:String):String
+	public static function makeComponentListNoFieldFromListField(listField:String):String
 	{
 		return listField + 'No';
 	}
 	
 	static var __allComponentListFields:Null<Array<String>> = null;
-	public static function getAllComponentListFields():Array<String>
+	public static function getAllComponentListFields(that:ExprOf<Entity>):Array<String>
 	{
+		var entitySystemListsType = {
+			var typeOfThat = Context.toComplexType(Context.typeof(that));
+			Context.getType(new Printer().printComplexType(typeOfThat) + 'SystemLists');
+		}
 		if (__allComponentListFields == null)
 		{
-			var staticFields:Array<ClassField> = switch(Context.getType('es.EntitySystemLists'))
+			getQualifiedEntitySystemListsName();
+			var staticFields:Array<ClassField> = switch(entitySystemListsType)
 			{
 				case TInst(_.get().fields.get() => fields, _): fields;
 				default: throw 'error';
@@ -72,7 +87,8 @@ class EntityMacroTools
 			return macro $entity.$field != null;
 		});
 		
-		if (conditions.length == 1) {
+		if (conditions.length == 1)
+		{
 			return conditions[0];
 		}
 		
