@@ -2,8 +2,6 @@ package es;
 
 import haxe.macro.Expr.ExprOf;
 
-private typedef EM = EntityMacro;
-
 class Entity extends EntityComponents
 {
 	public var entitySystem(default, null):EntitySystem;
@@ -15,10 +13,10 @@ class Entity extends EntityComponents
 	
 	macro public function setComponent<T>(that:ExprOf<Entity>, type:ExprOf<Class<T>>, component:ExprOf<T>):ExprOf<Entity>
 	{
-		var field = EM.makeComponentFieldFromTypeExpr(type);
-		
-		var listFields = EM.getAllComponentListFields(that).filter(function(list) return list.indexOf(field) >= 0);
-		var listNoFields = listFields.map(EM.makeComponentListNoFieldFromListField);
+		var field = EntityMacro.makeComponentFieldFromTypeExpr(type);
+		EntityMacro.updateFilesIfComponentFieldMissing(field);
+		var listFields = EntityMacro.getComponentListFields().filter(function(list) return list.indexOf(field) >= 0);
+		var listNoFields = listFields.map(EntityMacro.makeComponentListNoFieldFromListField);
 		
 		var updateListExprs = [
 			for (i in 0...listFields.length) 
@@ -26,13 +24,13 @@ class Entity extends EntityComponents
 				var listField = listFields[i];
 				var listNoField = listNoFields[i];
 				
-				var componentFields = EM.parseComponentFieldsFromComponentListField(listField);
+				var componentFields = EntityMacro.parseComponentFieldsFromComponentListField(listField);
 				componentFields.remove(field);
 				
 				var expr = macro entity.$listNoField = entitySystem.$listField.push(entity);
 				if (componentFields.length > 0)
 				{
-					var hasComponentsExpr = EM.makeHasComponentsExprFromFields(macro entity, componentFields);
+					var hasComponentsExpr = makeHasComponentsExprFromFields(macro entity, componentFields);
 					expr = macro if ($hasComponentsExpr)
 					{
 						$expr;
@@ -58,10 +56,9 @@ class Entity extends EntityComponents
 	
 	macro public function removeComponent<T>(that:ExprOf<Entity>, type:ExprOf<Class<T>>):ExprOf<T>
 	{
-		var field = EM.makeComponentFieldFromTypeExpr(type);
-		
-		var listFields = EM.getAllComponentListFields(that).filter(function(list) return list.indexOf(field) >= 0);
-		var listNoFields = listFields.map(EM.makeComponentListNoFieldFromListField);
+		var field = EntityMacro.makeComponentFieldFromTypeExpr(type);
+		var listFields = EntityMacro.getComponentListFields().filter(function(list) return list.indexOf(field) >= 0);
+		var listNoFields = listFields.map(EntityMacro.makeComponentListNoFieldFromListField);
 		
 		var updateListExprs = [
 			for (i in 0...listFields.length) 
@@ -69,7 +66,7 @@ class Entity extends EntityComponents
 				var listField = listFields[i];
 				var listNoField = listNoFields[i];
 				
-				var listFields = EM.parseComponentFieldsFromComponentListField(listField);
+				var listFields = EntityMacro.parseComponentFieldsFromComponentListField(listField);
 				listFields.remove(field);
 				
 				var expr0 = macro var no = entity.$listNoField;
@@ -111,18 +108,39 @@ class Entity extends EntityComponents
 	
 	macro public function getComponent<T>(that:ExprOf<Entity>, type:ExprOf<Class<T>>):ExprOf<Null<T>>
 	{
-		var field = EM.makeComponentFieldFromTypeExpr(type);
+		var field = EntityMacro.makeComponentFieldFromTypeExpr(type);
         return macro $that.$field;
 	}
         
     macro public function hasComponents(that:ExprOf<Entity>, type:ExprOf<Class<Dynamic>>, types:Array<ExprOf<Class<Dynamic>>>):ExprOf<Bool>
 	{
 		types.push(type);
-		var fields = types.map(EM.makeComponentFieldFromTypeExpr);
+		var fields = types.map(EntityMacro.makeComponentFieldFromTypeExpr);
 		return macro
 		{
 			var entity = $that;
-			${EM.makeHasComponentsExprFromFields(macro entity, fields)};
+			${makeHasComponentsExprFromFields(macro entity, fields)};
 		};
     }
+	
+	#if macro
+	
+	static function makeHasComponentsExprFromFields(entity:ExprOf<Entity>, fields:Array<String>):ExprOf<Bool>
+	{
+		var conditions = fields.map(function(field) return macro $entity.$field != null);
+		
+		if (conditions.length == 1)
+		{
+			return conditions[0];
+		}
+		
+		var and = conditions.pop();
+		for (condition in conditions) 
+		{
+			and = macro $and && $condition;
+		}
+		return and;
+	}
+	
+	#end
 }

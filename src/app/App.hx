@@ -8,7 +8,7 @@ import haxe.Timer;
 
 class App extends Sprite
 {
-	var system:es2.EntitySystem = new es2.EntitySystem();
+	var system:es.EntitySystem = new es.EntitySystem();
 	
 	public function new()
 	{

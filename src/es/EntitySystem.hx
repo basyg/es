@@ -3,8 +3,6 @@ package es;
 import ds.Arr;
 import haxe.macro.Expr.ExprOf;
 
-private typedef EM = EntityMacro;
-
 class EntitySystem extends EntitySystemLists
 {
 	var _entities:Arr<Entity> = new Arr();
@@ -14,7 +12,7 @@ class EntitySystem extends EntitySystemLists
 		
 	}
 	
-	public function createEntity():Entity
+	public inline function createEntity():Entity
 	{
 		var entity = new Entity(this);
 		_entities.push(entity);
@@ -29,7 +27,8 @@ class EntitySystem extends EntitySystemLists
 	macro public function getEntitiesWithComponents(that:ExprOf<EntitySystem>, type:ExprOf<Class<Dynamic>>, types:Array<ExprOf<Class<Dynamic>>>):ExprOf<ConstArr<Entity>>
 	{
 		types.push(type);
-		var listField = EM.makeComponentListFieldFromTypeExprs(types);
+		var listField = EntityMacro.makeComponentListFieldFromTypeExprs(types);
+		EntityMacro.updateFilesIfComponentListFieldMissing(listField);
 		return macro new ds.Arr.ConstArr($that.$listField);
 	}
 }
