@@ -5,7 +5,6 @@ import haxe.macro.Expr.ComplexType;
 import haxe.macro.Expr.ExprOf;
 import haxe.macro.Type;
 import haxe.macro.Type.ClassField;
-import sys.FileSystem;
 import sys.io.File;
 
 #if macro
@@ -16,7 +15,8 @@ class EntityMacro
 	static inline var PREFIX:String = '__';
 	static inline var LIST_SUFFIX:String = PREFIX + 'list';
 	
-	static var _type = EntityMacro;
+	static var _componentFields:Null<Array<String>> = null;
+	static var _componentListFields:Null<Array<String>> = null;
 	
 	public static function makeComponentFieldFromTypeExpr<T>(type:ExprOf<Class<T>>):String
 	{
@@ -40,53 +40,47 @@ class EntityMacro
 	
 	public static function updateFilesIfComponentFieldMissing(componentField:String)
 	{
-		if (__componentFields == null)
+		var componentFields = _componentFields == null ? getComponentFields() : _componentFields;
+		if (componentFields.indexOf(componentField) < 0)
 		{
-			getComponentFields();
-			getComponentListFields();
-		}
-		if (__componentFields.indexOf(componentField) < 0)
-		{
-			__componentFields.push(componentField);
-			_updateFiles(__componentFields, __componentListFields);
+			_componentFields.push(componentField);
+			_updateFiles(componentFields, getComponentListFields());
 		}
 	}
 	
 	public static function updateFilesIfComponentListFieldMissing(listField:String)
 	{
-		if (__componentListFields == null)
+		if (_componentListFields == null)
 		{
 			getComponentFields();
 			getComponentListFields();
 		}
-		if (__componentListFields.indexOf(listField) < 0)
+		if (_componentListFields.indexOf(listField) < 0)
 		{
-			__componentListFields.push(listField);
-			_updateFiles(__componentFields, __componentListFields);
+			_componentListFields.push(listField);
+			_updateFiles(_componentFields, _componentListFields);
 		}
 	}
 	
-	static var __componentFields:Null<Array<String>> = null;
 	public static function getComponentFields():Array<String>
 	{
-		if (__componentListFields == null)
+		if (_componentListFields == null)
 		{
-			__componentFields = _getInstaceFields(EntityComponents)
+			_componentFields = _getInstaceFields(EntityComponents)
 				.map(function(field) return field.name)
 				.filter(function(field) return field.indexOf(LIST_SUFFIX) < 0);
 		}
-		return __componentFields.copy();
+		return _componentFields.copy();
 	}
 	
-	static var __componentListFields:Null<Array<String>> = null;
 	public static function getComponentListFields():Array<String>
 	{
-		if (__componentListFields == null)
+		if (_componentListFields == null)
 		{
-			__componentListFields = _getInstaceFields(EntitySystemLists)
+			_componentListFields = _getInstaceFields(EntitySystemLists)
 				.map(function(field) return field.name);
 		}
-		return __componentListFields.copy();
+		return _componentListFields.copy();
 	}
 	
 	static var __parsedComponentFieldsFromComponentListField:Map<String, Array<String>> = new Map();
@@ -128,37 +122,44 @@ class EntityMacro
 	static function _updateFiles(componentFields:Array<String>, componentListFields:Array<String>):Void
 	{
 		var srcPath = Sys.getCwd() + 'src/';
+		var packagePath = {
+			var fullName = TypeTool.fromType(EntityComponents).getName();
+			var lastPointNo = fullName.lastIndexOf('.');
+			lastPointNo > 0 ? fullName.substring(0, lastPointNo) : '';
+		}
 		
 		var entityComponentsTypePath = srcPath + StringTools.replace(TypeTool.fromType(EntityComponents).getName(), '.', '/') + '.hx';
-		var entityComponentsSource = 'package es;\nclass EntityComponents\n{\n';
-		entityComponentsSource += componentFields
-			.map(function(field)
-			{
-				var typeName = StringTools.replace(field.substr(PREFIX.length), '_', '.');
-				return '	@:noCompletion public var $field:$typeName = null;';
-			}).join('\n');
+		var entityComponentsSource =
+			'package $packagePath;\n' +
+			'class EntityComponents\n' +
+			'{\n';
+		for (field in componentFields) 
+		{
+			var typeName = StringTools.replace(field.substr(PREFIX.length), '_', '.');
+			entityComponentsSource += '\t@:noCompletion public var $field:$typeName = null;\n';
+		}
 		entityComponentsSource += '\n';
-		entityComponentsSource += componentListFields
-			.map(function(listField)
-			{
-				var listNoField = makeComponentListNoFieldFromListField(listField);
-				return '	@:noCompletion public var $listNoField:Int = -1;';
-			}).join('\n');
-		entityComponentsSource += '\n}\n';
-		File.saveContent(entityComponentsTypePath, entityComponentsSource);
+		for (listField in componentListFields) 
+		{
+			var listNoField = makeComponentListNoFieldFromListField(listField);
+			entityComponentsSource += '\t@:noCompletion public var $listNoField:Int = -1;\n';
+		}
+		entityComponentsSource += '}\n';
 		
 		var entitySystemListsTypePath = srcPath + StringTools.replace(TypeTool.fromType(EntitySystemLists).getName(), '.', '/') + '.hx';
-		var entitySystemListsSource = 'package es;\nclass EntitySystemLists\n{\n';
-		entitySystemListsSource += componentListFields
-			.map(function(listField)
-			{
-				return '	@:noCompletion public var $listField:ds.Arr<Entity> = new ds.Arr();';
-			}).join('\n');
-		entitySystemListsSource += '\n}\n';
-		File.saveContent(entitySystemListsTypePath, entitySystemListsSource);
+		var entitySystemListsSource =
+			'package $packagePath;\n' +
+			'class EntitySystemLists\n' +
+			'{\n';
+		for (listField in componentListFields) 
+		{
+			var listNoField = makeComponentListNoFieldFromListField(listField);
+			entitySystemListsSource += '	@:noCompletion public var $listField:ds.Arr<Entity> = new ds.Arr();\n';
+		}
+		entitySystemListsSource += '}\n';
 		
-		trace(entitySystemListsSource);
-		trace(FileSystem.exists(entitySystemListsTypePath));
+		File.saveContent(entityComponentsTypePath, entityComponentsSource);
+		File.saveContent(entitySystemListsTypePath, entitySystemListsSource);
 	}
 	
 }

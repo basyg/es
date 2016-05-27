@@ -3,12 +3,13 @@ package app;
 import app.components.Angle;
 import app.components.Position;
 import app.components.Speed;
+import es.EntitySystem;
 import flash.display.Sprite;
 import haxe.Timer;
 
 class App extends Sprite
 {
-	var system:es.EntitySystem = new es.EntitySystem();
+	var system:EntitySystem = new EntitySystem();
 	
 	public function new()
 	{
