@@ -43,11 +43,14 @@ class EntityMacro
 	
 	public static function updateFilesIfComponentFieldMissing(componentField:String)
 	{
-		var componentFields = _componentFields == null ? getComponentFields() : _componentFields;
-		if (componentFields.indexOf(componentField) < 0)
+		if (_componentFields == null)
+		{
+			getComponentFields();
+		}
+		if (_componentFields.indexOf(componentField) < 0)
 		{
 			_componentFields.push(componentField);
-			_updateFiles(componentFields, getComponentListFields());
+			_updateFiles(_componentFields, getComponentListFields());
 		}
 	}
 	
@@ -55,13 +58,12 @@ class EntityMacro
 	{
 		if (_componentListFields == null)
 		{
-			getComponentFields();
 			getComponentListFields();
 		}
 		if (_componentListFields.indexOf(listField) < 0)
 		{
 			_componentListFields.push(listField);
-			_updateFiles(_componentFields, _componentListFields);
+			_updateFiles(getComponentFields(), _componentListFields);
 		}
 	}
 	
@@ -124,6 +126,9 @@ class EntityMacro
 	
 	static function _updateFiles(componentFields:Array<String>, componentListFields:Array<String>):Void
 	{
+		componentFields = _removeRepeatsAndSort(componentFields);
+		componentListFields = _removeRepeatsAndSort(componentListFields);
+		
 		var srcPath = Sys.getCwd() + 'src/';
 		var packagePath = {
 			var fullName = TypeTool.fromType(EntityComponents).getName();
