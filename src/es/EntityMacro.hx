@@ -3,7 +3,6 @@ package es;
 import haxe.macro.Context;
 import haxe.macro.Expr.ComplexType;
 import haxe.macro.Expr.ExprOf;
-import haxe.macro.Expr.TypePath;
 import haxe.macro.ExprTools;
 import haxe.macro.Printer;
 import haxe.macro.Type;
@@ -24,13 +23,22 @@ class EntityMacro
 	public static function makeComponentFieldFromTypeExpr<T>(type:ExprOf<Class<T>>):String
 	{
 		var typeName = TypeTool.fromTypeExpr(type).getName();
-		var componentField = PREFIX + StringTools.replace(typeName, '.', '_');
-		return componentField;
+		return makeComponentFieldFromTypeName(typeName);
+	}
+	
+	public static function makeComponentFieldFromTypeName(type:String):String
+	{
+		return PREFIX + StringTools.replace(type, '.', '_');
 	}
 	
 	public static function makeComponentListFieldFromTypeExprs(types:Array<ExprOf<Class<Dynamic>>>):String
 	{
-		var componentFields = _removeRepeatsAndSort(types.map(makeComponentFieldFromTypeExpr));
+		return makeComponentListFieldFromComponentFields(types.map(makeComponentFieldFromTypeExpr));
+	}
+	
+	public static function makeComponentListFieldFromComponentFields(fields:Array<String>):String
+	{
+		var componentFields = _removeRepeatsAndSort(fields);
 		var listField = componentFields.join('') + LIST_SUFFIX;
 		updateFilesIfComponentListFieldMissing(listField);
 		return listField;
@@ -104,7 +112,7 @@ class EntityMacro
 	
 	static function _getInstaceFields(type:Class<Dynamic>):Array<ClassField>
 	{
-		var entitySystemListsType = TypeTool.fromType(type).getType();
+		var entitySystemListsType = TypeTool.fromClass(type).getType();
 		return switch(entitySystemListsType)
 		{
 			case TInst(_.get().fields.get() => fields, _): fields;
@@ -131,12 +139,12 @@ class EntityMacro
 		
 		var srcPath = Sys.getCwd() + 'src/';
 		var packagePath = {
-			var fullName = TypeTool.fromType(EntityComponents).getName();
+			var fullName = TypeTool.fromClass(EntityComponents).getName();
 			var lastPointNo = fullName.lastIndexOf('.');
 			lastPointNo > 0 ? fullName.substring(0, lastPointNo) : '';
 		}
 		
-		var entityComponentsTypePath = srcPath + StringTools.replace(TypeTool.fromType(EntityComponents).getName(), '.', '/') + '.hx';
+		var entityComponentsTypePath = srcPath + StringTools.replace(TypeTool.fromClass(EntityComponents).getName(), '.', '/') + '.hx';
 		var entityComponentsSource =
 			'package $packagePath;\n' +
 			'class EntityComponents\n' +
@@ -157,7 +165,7 @@ class EntityMacro
 			'#end\n' + 
 			'}\n';
 		
-		var entitySystemListsTypePath = srcPath + StringTools.replace(TypeTool.fromType(EntitySystemLists).getName(), '.', '/') + '.hx';
+		var entitySystemListsTypePath = srcPath + StringTools.replace(TypeTool.fromClass(EntitySystemLists).getName(), '.', '/') + '.hx';
 		var entitySystemListsSource =
 			'package $packagePath;\n' +
 			'class EntitySystemLists\n' +
@@ -178,13 +186,18 @@ class EntityMacro
 	
 }
 
-private class TypeTool
+class TypeTool
 {
 	
 	static public function fromTypeExpr(type:ExprOf<Class<Dynamic>>):TypeTool
 	{
+		return fromType(Context.getType(ExprTools.toString(type)));
+	}
+	
+	static public function fromType(type:Type):TypeTool
+	{
 		var name = new Printer().printTypePath(
-			switch (Context.toComplexType(Context.getType(ExprTools.toString(type))))
+			switch (Context.toComplexType(type))
 			{
 				case ComplexType.TPath(p): p;
 				default: throw 'invalid ExprOf<Class<Dynamic>>';
@@ -193,7 +206,7 @@ private class TypeTool
 		return new TypeTool(name);
 	}
 	
-	static public function fromType(type:Class<Dynamic>):TypeTool
+	static public function fromClass(type:Class<Dynamic>):TypeTool
 	{
 		Assert.assert(Reflect.hasField(type, '__name__'), 'Reflect.hasField(type, "__name__")');
 		var name = Reflect.getProperty(type, '__name__').join('.');
