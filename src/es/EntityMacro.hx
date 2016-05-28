@@ -135,7 +135,8 @@ class EntityMacro
 		var entityComponentsSource =
 			'package $packagePath;\n' +
 			'class EntityComponents\n' +
-			'{\n';
+			'{\n' +
+			'#if !macro\n';
 		for (field in componentFields) 
 		{
 			var typeName = StringTools.replace(field.substr(PREFIX.length), '_', '.');
@@ -147,19 +148,24 @@ class EntityMacro
 			var listNoField = makeComponentListNoFieldFromListField(listField);
 			entityComponentsSource += '\t@:noCompletion public var $listNoField:Int = -1;\n';
 		}
-		entityComponentsSource += '}\n';
+		entityComponentsSource +=
+			'#end\n' + 
+			'}\n';
 		
 		var entitySystemListsTypePath = srcPath + StringTools.replace(TypeTool.fromType(EntitySystemLists).getName(), '.', '/') + '.hx';
 		var entitySystemListsSource =
 			'package $packagePath;\n' +
 			'class EntitySystemLists\n' +
-			'{\n';
+			'{\n' +
+			'#if !macro\n';
 		for (listField in componentListFields) 
 		{
 			var listNoField = makeComponentListNoFieldFromListField(listField);
 			entitySystemListsSource += '	@:noCompletion public var $listField:ds.Arr<Entity> = new ds.Arr();\n';
 		}
-		entitySystemListsSource += '}\n';
+		entitySystemListsSource +=
+			'#end\n' + 
+			'}\n';
 		
 		File.saveContent(entityComponentsTypePath, entityComponentsSource);
 		File.saveContent(entitySystemListsTypePath, entitySystemListsSource);
