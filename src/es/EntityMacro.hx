@@ -3,6 +3,9 @@ package es;
 import haxe.macro.Context;
 import haxe.macro.Expr.ComplexType;
 import haxe.macro.Expr.ExprOf;
+import haxe.macro.Expr.TypePath;
+import haxe.macro.ExprTools;
+import haxe.macro.Printer;
 import haxe.macro.Type;
 import haxe.macro.Type.ClassField;
 import sys.io.File;
@@ -169,16 +172,14 @@ private class TypeTool
 	
 	static public function fromTypeExpr(type:ExprOf<Class<Dynamic>>):TypeTool
 	{
-		var type = Context.typeof(type);
-		return switch (type) 
-		{
-			case Type.TType(_.toString() => classString, p):
-				var leftAngleBracketNo = classString.indexOf('<');
-				var rightAngleBracketNo = classString.lastIndexOf('>');
-				var name = classString.substring(leftAngleBracketNo + 1, rightAngleBracketNo);
-				new TypeTool(name);
-			default: throw 'invalid ExprOf<Class<Dynamic>>';
-		}
+		var name = new Printer().printTypePath(
+			switch (Context.toComplexType(Context.getType(ExprTools.toString(type))))
+			{
+				case ComplexType.TPath(p): p;
+				default: throw 'invalid ExprOf<Class<Dynamic>>';
+			}
+		);
+		return new TypeTool(name);
 	}
 	
 	static public function fromType(type:Class<Dynamic>):TypeTool
