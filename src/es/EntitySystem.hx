@@ -1,15 +1,14 @@
 package es;
 
 import ds.Arr;
-import haxe.macro.Expr.Function;
+import haxe.Constraints.Function;
 #if macro
 import haxe.macro.Context;
-import haxe.macro.Expr.ComplexType;
 import haxe.macro.Expr.ExprDef;
 import haxe.macro.Expr.ExprOf;
 import haxe.macro.Expr.FunctionArg;
+import haxe.macro.Expr.Function;
 #end
-import haxe.macro.ExprTools;
 
 class EntitySystem extends EntitySystemLists
 {
@@ -53,16 +52,15 @@ class EntitySystem extends EntitySystemLists
 			Assert.assert(arg.type != null, 'function has type for argument "${arg.name}"');
 			return EntityMacro.TypeTool.fromType(Context.resolveType(arg.type, that.pos));
 		});
-		var fields = typeTools.map(function(typeTool) return EntityMacro.makeComponentFieldFromTypeName(typeTool.getName()));
+		var fields = [for (typeTool in typeTools) EntityMacro.makeComponentFieldFromTypeName(typeTool.getName())];
 		var listField = EntityMacro.makeComponentListFieldFromComponentFields(fields);
-		var argExprs = fields.map(function(field) return macro entity.$field);
-		var callExpr = { expr: ExprDef.ECall(funcExpr, argExprs), pos: Context.currentPos() };
+		var argExprs = [for (field in fields) macro entity.$field];
 		return macro
 		{
 			var entitySystem = $that;
 			for (entity in entitySystem.$listField)
 			{
-				$callExpr;
+				$funcExpr($a{argExprs});
 			}
 		};
 	}

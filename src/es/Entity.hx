@@ -18,27 +18,24 @@ class Entity extends EntityComponents
 		var listFields = EntityMacro.getComponentListFields().filter(function(list) return list.indexOf(field) >= 0);
 		var listNoFields = listFields.map(EntityMacro.makeComponentListNoFieldFromListField);
 		
-		var updateListExprs = [
-			for (i in 0...listFields.length) 
+		var updateListExprs = [for (i in 0...listFields.length) 
+		{
+			var listField = listFields[i];
+			var listNoField = listNoFields[i];
+			var componentFields = EntityMacro.parseComponentFieldsFromComponentListField(listField);
+			componentFields.remove(field);
+			
+			var expr = macro entity.$listNoField = entitySystem.$listField.push(entity);
+			if (componentFields.length > 0)
 			{
-				var listField = listFields[i];
-				var listNoField = listNoFields[i];
-				
-				var componentFields = EntityMacro.parseComponentFieldsFromComponentListField(listField);
-				componentFields.remove(field);
-				
-				var expr = macro entity.$listNoField = entitySystem.$listField.push(entity);
-				if (componentFields.length > 0)
+				var hasComponentsExpr = makeHasComponentsExprFromFields(macro entity, componentFields);
+				expr = macro if ($hasComponentsExpr)
 				{
-					var hasComponentsExpr = makeHasComponentsExprFromFields(macro entity, componentFields);
-					expr = macro if ($hasComponentsExpr)
-					{
-						$expr;
-					}
+					$expr;
 				}
-				expr;
 			}
-		];
+			expr;
+		}];
 		
         return macro
 		{
@@ -60,37 +57,33 @@ class Entity extends EntityComponents
 		var listFields = EntityMacro.getComponentListFields().filter(function(list) return list.indexOf(field) >= 0);
 		var listNoFields = listFields.map(EntityMacro.makeComponentListNoFieldFromListField);
 		
-		var updateListExprs = [
-			for (i in 0...listFields.length) 
+		var updateListExprs = [for (i in 0...listFields.length) 
+		{
+			var listField = listFields[i];
+			var listNoField = listNoFields[i];
+			var listFields = EntityMacro.parseComponentFieldsFromComponentListField(listField);
+			listFields.remove(field);
+			
+			var expr = macro
 			{
-				var listField = listFields[i];
-				var listNoField = listNoFields[i];
-				
-				var listFields = EntityMacro.parseComponentFieldsFromComponentListField(listField);
-				listFields.remove(field);
-				
-				var expr0 = macro var no = entity.$listNoField;
-				var expr = macro
+				var list = entitySystem.$listField;
+				list.spliceByLast(no);
+				if (no < list.length)
 				{
-					var list = entitySystem.$listField;
-					list.spliceByLast(no);
-					if (no < list.length)
-					{
-						list[no].$listNoField = no;
-					}
-					entity.$listNoField = -1;
+					list[no].$listNoField = no;
 				}
-				if (listFields.length > 0)
-				{
-					expr = macro if (no >= 0) $expr;
-				}
-				expr = macro
-				{
-					$expr0;
-					$expr;
-				}
+				entity.$listNoField = -1;
 			}
-		];
+			if (listFields.length > 0)
+			{
+				expr = macro if (no >= 0) $expr;
+			}
+			macro
+			{
+				var no = entity.$listNoField;
+				$expr;
+			}
+		}];
 		
         return macro
 		{
@@ -127,19 +120,13 @@ class Entity extends EntityComponents
 	
 	static function makeHasComponentsExprFromFields(entity:ExprOf<Entity>, fields:Array<String>):ExprOf<Bool>
 	{
-		var conditions = fields.map(function(field) return macro $entity.$field != null);
-		
-		if (conditions.length == 1)
-		{
-			return conditions[0];
-		}
-		
-		var and = conditions.pop();
+		var conditions = [for (field in fields) macro $entity.$field != null];
+		var expr = conditions.pop();
 		for (condition in conditions) 
 		{
-			and = macro $and && $condition;
+			expr = macro $expr && $condition;
 		}
-		return and;
+		return expr;
 	}
 	
 	#end
