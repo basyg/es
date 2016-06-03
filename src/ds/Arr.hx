@@ -231,7 +231,7 @@ abstract Arr<T>(Array<T>) from Array<T>
 	{
 		var newLength = this.length - 1;
 		this[i] = this[newLength];
-		this.splice(i, newLength);
+		this.pop();
 	}
 	
 	inline function get_length():Int
