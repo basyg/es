@@ -3,6 +3,7 @@ package app;
 import app.components.Angle;
 import app.components.Position;
 import app.components.Speed;
+import es.Entity;
 import es.EntitySystem;
 import flash.display.Sprite;
 import haxe.Timer;
@@ -18,12 +19,12 @@ class App extends Sprite
 	
 	public function start():Void
 	{
-		for (i in 0...50000) 
+		for (i in 0...500000) 
 		{
 			var e = system.createEntity();
 			e.setComponent(Speed, new Speed());
 		}
-		for (i in 0...50000) 
+		for (i in 0...500000) 
 		{
 			var e = system.createEntity();
 			e.setComponent(Position, new Position());
@@ -42,14 +43,14 @@ class App extends Sprite
 		var e = system.createEntity();
 		e.setComponent(Angle, new Angle());
 		
-		Timer.measure(remove);
-		Timer.measure(removeStatic);
+		//Timer.measure(remove);
+		//Timer.measure(removeStatic);
 		//remove();
 		
-		trace(system.getEntitiesWithComponents(Speed, Angle, Position).length);
-		trace(system.getEntitiesWithComponents(Speed, Position).length);
-		trace(system.getEntitiesWithComponents(Speed).length);
-		trace(system.getEntitiesWithComponents(Position).length);
+		//trace(system.getEntitiesWithComponents(Speed, Angle, Position).length);
+		//trace(system.getEntitiesWithComponents(Speed, Position).length);
+		//trace(system.getEntitiesWithComponents(Speed).length);
+		//trace(system.getEntitiesWithComponents(Position).length);
 	}
 	
 	function remove()
@@ -75,11 +76,18 @@ class App extends Sprite
 	
 	public function update():Void 
 	{
-		//Entity.iterateWithComponents(Position);
-		//trace(Entity.getEntitiesWithComponents(Speed, Angle, Position).length);
-		//Entity.iterateWithComponents(Speed, Position);
-		//Entity.iterateWithComponents(Position);
+		var i = 0;
+		for (e in system.getEntitiesWithComponents(Position)) i++;
+		for (e in system.getEntitiesWithComponents(Speed, Position)) i++;
+		for (e in system.getEntitiesWithComponents(Position)) i++;
 		
+		var f = false;
+		if (f)
+		{
+			var i = 0;
+			i++;
+		}
+		//trace(i);
 		
 		//trace(f);
 		//var i = 0;

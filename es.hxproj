@@ -19,7 +19,7 @@
   </classpaths>
   <!-- Build options -->
   <build>
-    <option directives="advanced-telemetry" />
+    <option directives="advanced-telemetry&#xA;dce=full&#xA;analyzer" />
     <option flashStrict="True" />
     <option noInlineOnDebug="False" />
     <option mainClass="Main" />
